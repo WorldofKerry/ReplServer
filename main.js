@@ -89,7 +89,7 @@ export function serve(port = 80) {
   app.use(express.urlencoded({ extended: true })); // what this?
 
   app.listen(port, () => {
-    console.log(`Server is running on https//localhost:${port}`);
+    console.log(`Server is running on http://localhost:${port}`);
   });
 
   app.get("/", (req, res) => {
