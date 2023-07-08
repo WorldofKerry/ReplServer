@@ -4,7 +4,7 @@ import * as assert from "node:assert";
 function fileSystemTest() {
   const plainText = "Hello, World!";
   const password = "password";
-  const path = "__testData.txt";
+  const path = `fileSystemTest.log`;
 
   main.encryptString(path, plainText, password);
 
