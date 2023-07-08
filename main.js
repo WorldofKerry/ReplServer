@@ -1,5 +1,10 @@
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
+import express from "express";
+import formidable from "formidable";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export function encryptString(path, plainText, password) {
   const iv = Buffer.alloc(16, 0);
@@ -29,16 +34,47 @@ export function decryptString(path, password) {
       decrypted += chunk.toString("utf8");
     }
   });
-  const fileRead = fs.readFileSync(path, "utf8");
-  decipher.write(fileRead, "hex");
-  decipher.end();
-  return decrypted;
+  try {
+    const fileRead = fs.readFileSync(path, "utf8");
+    decipher.write(fileRead, "hex");
+    decipher.end();
+    return decrypted;
+  } catch (e) {
+    console.log(e);
+    return "{}";
+  }
 }
 
 export function serve(port = 80) {
-  let data = {}
+  const DATA_TYPES = {
+    file: "file",
+  };
+  const STORAGE_PATH = "storage.log";
+  const HTML_FILE_INPUT_NAME = "fileUploaded";
+  const HTML_KEY_INPUT_NAME = "key";
+
+  function initialize() {
+    const rawData = decryptString(STORAGE_PATH, process.env.CIPHER_PASSWORD);
+    try {
+      const data = JSON.parse(rawData);
+      return data;
+    } catch (e) {
+      console.log(`Raw data: ${rawData}`);
+      return {};
+    }
+  }
+
+  let storage = initialize();
+  setInterval(() => {
+    encryptString(
+      STORAGE_PATH,
+      JSON.stringify(storage),
+      process.env.CIPHER_PASSWORD
+    );
+  }, 10000);
+
   const app = express();
-  port = 80;
+  port = 8080;
 
   // Log Requests by time
   app.use((req, res, next) => {
@@ -49,11 +85,11 @@ export function serve(port = 80) {
     );
     next();
   });
-  app.use(express.json()); 
+  app.use(express.json());
   app.use(express.urlencoded({ extended: true })); // what this?
 
   app.listen(port, () => {
-    console.log("Server is running on port " + port);
+    console.log(`Server is running on https//localhost:${port}`);
   });
 
   app.get("/", (req, res) => {
@@ -61,36 +97,34 @@ export function serve(port = 80) {
   });
 
   app.get("/upload/:token", (req, res) => {
-    res.writeHead(200, { "content-type": "text/html" });
-    res.end(
-      `<form method='post' action='/upload/submit/${req.params.token}' enctype='multipart/form-data'>
-      <input type='file' name='fileUploaded'>
-      <input type='submit'>
-    </form>`
-    );
+    res.send(`
+    <h2>With <code>"express"</code> npm package</h2>
+    <form action="/upload/submit/${req.params.token}" enctype="multipart/form-data" method="post">
+      <div>Key (defaults to filename with extension): 
+        <input type="text" name="${HTML_KEY_INPUT_NAME}" />
+      </div>
+      <div>File: 
+        <input type="file" name="${HTML_FILE_INPUT_NAME}" multiple="multiple" />
+      </div>
+      <input type="submit" value="Upload" />
+    </form>
+  `);
   });
 
-  app.get("/files/:fileName", (req, res) => {
-    downloadFile(req.params.fileName)
-      .then((file) => {
-        const ext = file.fileName.split(".").pop();
-        res.writeHead(200, { "content-type": "application/" + ext });
-        res.end(file.fileData, "base64");
-      })
-      .catch((err) => {
-        res.status(404).send(err.message);
-      });
+  app.get("/get/:key", (req, res) => {
+    const value = storage[req.params.key];
+    if (value.type === DATA_TYPES.file) {
+      console.log("Extension is " + value.ext);
+      res.writeHead(200, { "content-type": "application/" + value.ext });
+      res.end(value.data, "base64");
+    } else {
+      res.end(value.data, "utf8");
+    }
   });
 
-  app.get("/delete/:token", (req, res) => {
+  app.get("/delete/:key/:token", (req, res) => {
     if (req.params.token === process.env.DELETE_TOKEN) {
-      deleteAll()
-        .then((data) => {
-          res.send(data);
-        })
-        .catch((err) => {
-          res.status(500).send(err.message);
-        });
+      delete storage[req.params.key];
     } else {
       res.status(401).send("Unauthorized");
     }
@@ -98,19 +132,33 @@ export function serve(port = 80) {
 
   app.route("/upload/submit/:token").post(function (req, res, next) {
     if (req.params.token === process.env.UPLOAD_TOKEN) {
-      var form = new formidable.IncomingForm();
-      form.parse(req, function (err, fields, files) {
-        uploadFile(
-          files.fileUploaded.filepath,
-          files.fileUploaded.originalFilename
-        ).then((value) => {
-          console.log(value);
-          res.write("File uploaded and moved!");
-          res.end();
-        });
+      const form = formidable({});
+
+      form.parse(req, (err, fields, files) => {
+        if (err) {
+          next(err);
+          return;
+        }
+        // console.log(
+        //   `fields: ${JSON.stringify(fields)}, files: ${JSON.stringify(files)}`
+        // );
+        for (let i = 0; i < files[HTML_FILE_INPUT_NAME].length; i++) {
+          // Currently only one file upload is supported
+          const file = files[HTML_FILE_INPUT_NAME][i];
+          const key =
+            fields[HTML_KEY_INPUT_NAME][i] === ""
+              ? file.originalFilename
+              : fields[HTML_KEY_INPUT_NAME][i];
+          storage[key] = {
+            ext: key.split(".").pop(),
+            type: DATA_TYPES.file,
+            data: fs.readFileSync(file.filepath, { encoding: "base64" }),
+            ...file,
+          };
+          console.log(`Uploaded file: ${file.originalFilename} as ${key}`);
+        }
       });
-    } else {
-      res.status(401).send("Your mum so");
     }
   });
 }
+serve();
