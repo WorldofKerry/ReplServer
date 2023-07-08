@@ -1,12 +1,9 @@
 import fs from "node:fs";
 import express from "express";
 import formidable from "formidable";
-import dotenv from "dotenv";
 import { encryptString, decryptString } from "./filesystem.js";
 
-dotenv.config();
-
-export function serve(port = 8080) {
+export function serve({ port = 8080, envVars = undefined } = {}) {
   const DATA_TYPES = {
     file: "file",
   };
@@ -15,23 +12,20 @@ export function serve(port = 8080) {
   const HTML_KEY_INPUT_NAME = "key";
 
   function initialize() {
-    const rawData = decryptString(STORAGE_PATH, process.env.CIPHER_PASSWORD);
+    console.log("Initializing");
+    const rawData = decryptString(STORAGE_PATH, envVars.FILESYSTEM);
+    console.log(`Data in storage: ${rawData}`);
     try {
       const data = JSON.parse(rawData);
       return data;
     } catch (e) {
-      console.log(`Raw data: ${rawData}`);
       return {};
     }
   }
 
   let storage = initialize();
   setInterval(() => {
-    encryptString(
-      STORAGE_PATH,
-      JSON.stringify(storage),
-      process.env.CIPHER_PASSWORD
-    );
+    encryptString(STORAGE_PATH, JSON.stringify(storage), envVars.FILESYSTEM);
   }, 10000);
 
   const app = express();
@@ -83,7 +77,7 @@ export function serve(port = 8080) {
   });
 
   app.get("/delete/:key/:token", (req, res) => {
-    if (req.params.token === process.env.DELETE_TOKEN) {
+    if (req.params.token === token) {
       delete storage[req.params.key];
     } else {
       res.status(401).send("Unauthorized");
@@ -91,7 +85,7 @@ export function serve(port = 8080) {
   });
 
   app.route("/upload/submit/:token").post(function (req, res, next) {
-    if (req.params.token === process.env.UPLOAD_TOKEN) {
+    if (req.params.token === token) {
       const form = formidable({});
 
       form.parse(req, (err, fields, files) => {

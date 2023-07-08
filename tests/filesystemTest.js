@@ -1,5 +1,5 @@
 import * as assert from "node:assert";
-import { encryptString, decryptString } from "../filesystem.js";
+import { encryptString, decryptString } from "../src/filesystem.js";
 
 function fileSystemTest() {
   const plainText = "Hello, World!";

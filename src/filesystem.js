@@ -31,6 +31,7 @@ export function decryptString(path, password) {
   });
   try {
     const fileRead = fs.readFileSync(path, "utf8");
+    console.log("Read File:", fileRead);
     decipher.write(fileRead, "hex");
     decipher.end();
     return decrypted;
