@@ -98,7 +98,7 @@ export function serve(port = 80) {
 
   app.get("/upload/:token", (req, res) => {
     res.send(`
-    <h2>With <code>"express"</code> npm package</h2>
+    <h1>Upload File</h1>
     <form action="/upload/submit/${req.params.token}" enctype="multipart/form-data" method="post">
       <div>Key (defaults to filename with extension): 
         <input type="text" name="${HTML_KEY_INPUT_NAME}" />
