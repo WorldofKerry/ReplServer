@@ -45,7 +45,7 @@ export function decryptString(path, password) {
   }
 }
 
-export function serve(port = 80) {
+export function serve(port = 8080) {
   const DATA_TYPES = {
     file: "file",
   };
@@ -74,7 +74,6 @@ export function serve(port = 80) {
   }, 10000);
 
   const app = express();
-  port = 8080;
 
   // Log Requests by time
   app.use((req, res, next) => {
