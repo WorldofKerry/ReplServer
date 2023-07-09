@@ -77,7 +77,7 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
   });
 
   app.get("/delete/:key/:token", (req, res) => {
-    if (req.params.token === token) {
+    if (req.params.token === envVars.TOKEN) {
       delete storage[req.params.key];
     } else {
       res.status(401).send("Unauthorized");
@@ -85,7 +85,7 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
   });
 
   app.route("/upload/submit/:token").post(function (req, res, next) {
-    if (req.params.token === token) {
+    if (req.params.token === envVars.TOKEN) {
       const form = formidable({});
 
       form.parse(req, (err, fields, files) => {
