@@ -1,6 +1,11 @@
 #!/bin/bash -ex
 
+# Directory
 cp temp/* temp/.* . -r
 rm temp/ -rf
-npm install
+
+# Env Variables
 cp .env.sample .env
+
+# Node Modules
+npm install
