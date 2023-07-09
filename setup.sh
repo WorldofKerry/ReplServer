@@ -1,6 +1,6 @@
 #!/bin/bash -ex
 
-cp tmp/* . -r
-rm tmp/ -rf
+cp temp/* temp/.* . -r
+rm temp/ -rf
 npm install
 cp .env.sample .env
