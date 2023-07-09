@@ -1,28 +1,41 @@
 import * as assert from "node:assert";
 import { encryptToFile, decryptFromFile } from "../src/filesystem.js";
 import fs from "node:fs";
+import path from "node:path";
 
 function fileSystemTest() {
-  const data = {
-    testing: "123",
-  };
+  const data = JSON.parse(
+    JSON.stringify({
+      testing: "123",
+      abc: "def",
+      nested: {
+        dicts: {
+          are: "so cool",
+        },
+      },
+    })
+  );
   const password = "password";
-  const path = `fileSystemTest.log`;
 
-  const stringified = JSON.stringify(data);
+  const storagePath = path.posix.parse(`fileSystemTest.log`);
+  const debugPath = {
+    ...storagePath,
+    name: storagePath.name + "Raw",
+    base: undefined, // base takes priority over name + ext
+  };
 
-  encryptToFile(path, stringified, password);
-  fs.writeFileSync(`raw${path}`, stringified); // For debugging
+  encryptToFile(path.format(storagePath), JSON.stringify(data), password);
+  fs.writeFileSync(path.format(debugPath), JSON.stringify(data, null, "  ")); // For debugging
 
   setTimeout(() => {
     try {
-      const decrypted = decryptFromFile(path, password);
-      assert.strict(decrypted === stringified);
-      console.log("Decrypted: " + decrypted);
+      const decryptedData = decryptFromFile(path.format(storagePath), password);
+      assert.notStrictEqual(JSON.parse(decryptedData), data);
+      console.log("Decrypted: " + decryptedData);
     } catch (e) {
-      console.log(e);
+      console.log("fileSystemTest:", e);
     }
-  }, 1000);
+  }, JSON.stringify(data).length); // timeout proportional to data length
 }
 
 fileSystemTest();

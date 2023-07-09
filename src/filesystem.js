@@ -43,7 +43,11 @@ export function decryptFromFile(path, password) {
   });
   try {
     const fileRead = fs.readFileSync(path, "utf8");
-    console.log("Read File:", fileRead);
+    if (fileRead.length < 100) {
+      console.log(`Read file with length ${fileRead.length}: ${fileRead}`);
+    } else {
+      console.log(`Read file with length ${fileRead.length}`);
+    }
     decipher.write(fileRead, "hex");
     decipher.end();
     return decrypted;
