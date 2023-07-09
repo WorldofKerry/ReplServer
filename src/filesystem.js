@@ -1,11 +1,17 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 
-export function encryptString(path, plainText, password) {
+/**
+ * Encrypts text data to a file
+ * @param {*} path to file
+ * @param {*} textData text data
+ * @param {*} password of encryption
+ */
+export function encryptToFile(path, textData, password) {
   const iv = Buffer.alloc(16, 0);
   const key = crypto.scryptSync(password, "salt", 24);
   const cipher = crypto.createCipheriv("aes-192-cbc", key, iv);
-  let encrypted = cipher.update(plainText, "utf8", "hex");
+  let encrypted = cipher.update(textData, "utf8", "hex");
   encrypted += cipher.final("hex");
 
   const writeStream = fs.createWriteStream(path);
@@ -18,7 +24,13 @@ export function encryptString(path, plainText, password) {
   });
 }
 
-export function decryptString(path, password) {
+/**
+ * Decrypts data in a file to a text string
+ * @param {*} path to file
+ * @param {*} password of encryption
+ * @returns decrypted text data
+ */
+export function decryptFromFile(path, password) {
   const iv = Buffer.alloc(16, 0);
   const key = crypto.scryptSync(password, "salt", 24);
   const decipher = crypto.createDecipheriv("aes-192-cbc", key, iv);

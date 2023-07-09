@@ -1,17 +1,23 @@
 import * as assert from "node:assert";
-import { encryptString, decryptString } from "../src/filesystem.js";
+import { encryptToFile, decryptFromFile } from "../src/filesystem.js";
+import fs from "node:fs";
 
 function fileSystemTest() {
-  const plainText = "Hello, World!";
+  const data = {
+    testing: "123",
+  };
   const password = "password";
   const path = `fileSystemTest.log`;
 
-  encryptString(path, plainText, password);
+  const stringified = JSON.stringify(data);
+
+  encryptToFile(path, stringified, password);
+  fs.writeFileSync(`raw${path}`, stringified); // For debugging
 
   setTimeout(() => {
     try {
-      const decrypted = decryptString(path, password);
-      assert.strict(decrypted === plainText);
+      const decrypted = decryptFromFile(path, password);
+      assert.strict(decrypted === stringified);
       console.log("Decrypted: " + decrypted);
     } catch (e) {
       console.log(e);

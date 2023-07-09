@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import express from "express";
 import formidable from "formidable";
-import { encryptString, decryptString } from "./filesystem.js";
+import { encryptToFile, decryptFromFile } from "./filesystem.js";
 
 export function serve({ port = 8080, envVars = undefined } = {}) {
   const DATA_TYPES = {
@@ -13,7 +13,7 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
 
   function initialize() {
     console.log("Initializing");
-    const rawData = decryptString(STORAGE_PATH, envVars.FILESYSTEM);
+    const rawData = decryptFromFile(STORAGE_PATH, envVars.FILESYSTEM);
     console.log(`Data in storage: ${rawData}`);
     try {
       const data = JSON.parse(rawData);
@@ -25,7 +25,7 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
 
   let storage = initialize();
   setInterval(() => {
-    encryptString(STORAGE_PATH, JSON.stringify(storage), envVars.FILESYSTEM);
+    encryptToFile(STORAGE_PATH, JSON.stringify(storage), envVars.FILESYSTEM);
   }, 10000);
 
   const app = express();
