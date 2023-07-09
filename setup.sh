@@ -1,11 +1,12 @@
 #!/bin/bash -ex
 
 # Directory
-cp temp/* temp/.* . -r
+cp temp/.* temp/* . -r
 rm temp/ -rf
+rm tests/ -rf
 
 # Env Variables
-cp .env.sample .env
+mv .env.sample .env
 
 # Node Modules
 npm install
