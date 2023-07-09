@@ -12,7 +12,7 @@ trap 'error_handler' ERR
 cp temp/.* temp/* . -rf
 rm temp/ -rf
 rm tests/ -rf
-asldjf dfdsf
+mv dc -rf
 
 # Env Variables
 cp .env.sample .env

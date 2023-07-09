@@ -51,8 +51,11 @@ export function decryptFromFile(path, password) {
     decipher.write(fileRead, "hex");
     decipher.end();
     return decrypted;
-  } catch (e) {
-    console.log(e);
-    return "{}";
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      console.log(`${path} not found, initializing empty data object`);
+      return "{}";
+    }
+    console.log(error);
   }
 }
