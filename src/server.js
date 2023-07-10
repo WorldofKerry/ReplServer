@@ -3,29 +3,54 @@ import express from "express";
 import formidable from "formidable";
 import { encryptToFile, decryptFromFile } from "./filesystem.js";
 
+const STORAGE_PATH = "storage.log";
+
+function initialize(envVars) {
+  console.log("Initializing");
+  const rawData = decryptFromFile(
+    STORAGE_PATH,
+    envVars.getFileSystemPassword()
+  );
+  let data = {};
+  try {
+    data = JSON.parse(rawData);
+  } catch (e) {
+    console.log(e);
+  }
+  console.log("Data keys:", Object.keys(data));
+  return data;
+}
+
+/**
+ * Checks if API token is valid, if so return true, otherwise send 401 and return false
+ * @param {*} token to be checked
+ * @param {*} envVars environment variables
+ * @param {*} res response object
+ * @returns is API token valid
+ */
+function checkToken(token, envVars, res) {
+  if (token === envVars.getApiToken()) return true;
+  res.status(401).send("Unauthorized");
+  return false;
+}
+
 export function serve({ port = 8080, envVars = undefined } = {}) {
   const DATA_TYPES = {
     file: "file",
   };
-  const STORAGE_PATH = "storage.log";
-  const HTML_FILE_INPUT_NAME = "fileUploaded";
+  const HTML_FILE_INPUT_NAME = "files";
   const HTML_KEY_INPUT_NAME = "key";
+  const URLS = {
+    SUBMIT: "file/put/submit",
+  };
 
-  function initialize() {
-    console.log("Initializing");
-    const rawData = decryptFromFile(STORAGE_PATH, envVars.FILESYSTEM);
-    console.log(`Data in storage: ${rawData}`);
-    try {
-      const data = JSON.parse(rawData);
-      return data;
-    } catch (e) {
-      return {};
-    }
-  }
-
-  let storage = initialize();
+  let storage = initialize(envVars);
   setInterval(() => {
-    encryptToFile(STORAGE_PATH, JSON.stringify(storage), envVars.FILESYSTEM);
+    encryptToFile(
+      STORAGE_PATH,
+      JSON.stringify(storage),
+      envVars.getFileSystemPassword()
+    );
   }, 10000);
 
   const app = express();
@@ -50,10 +75,10 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
     res.status(200).json({ status: "awake" });
   });
 
-  app.get("/upload/:token", (req, res) => {
+  app.get("/:token/file/put", (req, res) => {
     res.send(`
     <h1>Upload File</h1>
-    <form action="/upload/submit/${req.params.token}" enctype="multipart/form-data" method="post">
+    <form action="/${req.params.token}/${URLS.SUBMIT}" enctype="multipart/form-data" method="post">
       <div>Key (defaults to filename with extension): 
         <input type="text" name="${HTML_KEY_INPUT_NAME}" />
       </div>
@@ -65,27 +90,27 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
   `);
   });
 
-  app.get("/get/:key", (req, res) => {
-    const value = storage[req.params.key];
-    if (value.type === DATA_TYPES.file) {
-      console.log("Extension is " + value.ext);
-      res.writeHead(200, { "content-type": "application/" + value.ext });
-      res.end(value.data, "base64");
-    } else {
-      res.end(value.data, "utf8");
+  app.get("/:token/file/get/:key", (req, res) => {
+    if (checkToken(req.params.token, envVars, res)) {
+      const value = storage[req.params.key];
+      if (value.type === DATA_TYPES.file) {
+        console.log("Extension is " + value.ext);
+        res.writeHead(200, { "content-type": "application/" + value.ext });
+        res.end(value.data, "base64");
+      } else {
+        res.end(value.data, "utf8");
+      }
     }
   });
 
-  app.get("/delete/:key/:token", (req, res) => {
-    if (req.params.token === envVars.TOKEN) {
+  app.get("/:token/file/delete/:key", (req, res) => {
+    if (checkToken(req.params.token, envVars, res)) {
       delete storage[req.params.key];
-    } else {
-      res.status(401).send("Unauthorized");
     }
   });
 
-  app.route("/upload/submit/:token").post(function (req, res, next) {
-    if (req.params.token === envVars.TOKEN) {
+  app.route(`/:token/${URLS.SUBMIT}`).post(function (req, res, next) {
+    if (checkToken(req.params.token, envVars, res)) {
       const form = formidable({});
 
       form.parse(req, (err, fields, files) => {
@@ -93,9 +118,6 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
           next(err);
           return;
         }
-        // console.log(
-        //   `fields: ${JSON.stringify(fields)}, files: ${JSON.stringify(files)}`
-        // );
         for (let i = 0; i < files[HTML_FILE_INPUT_NAME].length; i++) {
           // Currently only one file upload is supported
           const file = files[HTML_FILE_INPUT_NAME][i];
@@ -107,11 +129,17 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
             ext: key.split(".").pop(),
             type: DATA_TYPES.file,
             data: fs.readFileSync(file.filepath, { encoding: "base64" }),
-            ...file,
+            originalFilename: file.originalFilename,
+            lastModifiedDate: file.lastModifiedDate,
+            path: file.path,
+            mimetype: file.mimetype,
           };
           console.log(`Uploaded file: ${file.originalFilename} as ${key}`);
         }
+        res.send("Uploaded");
       });
+    } else {
+      res.status(401).send("Unauthorized");
     }
   });
 }

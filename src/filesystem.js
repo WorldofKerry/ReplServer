@@ -34,22 +34,20 @@ export function decryptFromFile(path, password) {
   const iv = Buffer.alloc(16, 0);
   const key = crypto.scryptSync(password, "salt", 24);
   const decipher = crypto.createDecipheriv("aes-192-cbc", key, iv);
-  let decrypted = "";
-  decipher.on("readable", () => {
-    let chunk;
-    while (null !== (chunk = decipher.read())) {
-      decrypted += chunk.toString("utf8");
-    }
-  });
+  // let decrypted = "";
+  // decipher.on("readable", () => {
+  //   let chunk;
+  //   while (null !== (chunk = decipher.read())) {
+  //     console.log("Decrypting", chunk);
+  //     decrypted += chunk.toString("utf8");
+  //   }
+  // });
   try {
     const fileRead = fs.readFileSync(path, "utf8");
-    if (fileRead.length < 100) {
-      console.log(`Read file with length ${fileRead.length}: ${fileRead}`);
-    } else {
-      console.log(`Read file with length ${fileRead.length}`);
-    }
-    decipher.write(fileRead, "hex");
-    decipher.end();
+    console.log(`Read file with length ${fileRead.length}`);
+    let decrypted = decipher.update(fileRead, "hex");
+    decrypted += decipher.final();
+    console.log(`Decrypted to length ${decrypted.length}`);
     return decrypted;
   } catch (error) {
     if (error.code === "ENOENT") {
