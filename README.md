@@ -18,6 +18,7 @@ A simple file-based server that is easy to fork on Replit.
 ### Code Quality
 
 - Replace string paths with path library
+- Make STORAGE_PATH an env var
 
 ## Architecture
 
