@@ -3,14 +3,9 @@ import express from "express";
 import formidable from "formidable";
 import { encryptToFile, decryptFromFile } from "./filesystem.js";
 
-const STORAGE_PATH = "storage.log";
-
-function initialize(envVars) {
+function initStorage(storagePath, storagePassword) {
   console.log("Initializing");
-  const rawData = decryptFromFile(
-    STORAGE_PATH,
-    envVars.getFileSystemPassword()
-  );
+  const rawData = decryptFromFile(storagePath, storagePassword);
   let data = {};
   try {
     data = JSON.parse(rawData);
@@ -23,18 +18,19 @@ function initialize(envVars) {
 
 /**
  * Checks if API token is valid, if so return true, otherwise send 401 and return false
- * @param {*} token to be checked
- * @param {*} envVars environment variables
+ * @param {*} actual actual token
+ * @param {*} expected expected toekn
  * @param {*} res response object
  * @returns is API token valid
  */
-function checkToken(token, envVars, res) {
-  if (token === envVars.getApiToken()) return true;
+function checkToken(actual, expected, res) {
+  if (actual === expected) return true;
   res.status(401).send("Unauthorized");
   return false;
 }
 
 export function serve({ port = 8080, envVars = undefined } = {}) {
+  const STORAGE_PATH = "storage.log";
   const DATA_TYPES = {
     file: "file",
   };
@@ -44,17 +40,9 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
     SUBMIT: "file/put/submit",
   };
 
-  let storage = initialize(envVars);
-  setInterval(() => {
-    encryptToFile(
-      STORAGE_PATH,
-      JSON.stringify(storage),
-      envVars.getFileSystemPassword()
-    );
-  }, 10000);
+  let storage = initStorage(STORAGE_PATH, envVars.getStoragePassword());
 
   const app = express();
-
   // Log Requests by time
   app.use((req, res, next) => {
     console.log(
@@ -91,26 +79,34 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
   });
 
   app.get("/:token/file/get/:key", (req, res) => {
-    if (checkToken(req.params.token, envVars, res)) {
-      const value = storage[req.params.key];
-      if (value.type === DATA_TYPES.file) {
-        console.log("Extension is " + value.ext);
-        res.writeHead(200, { "content-type": "application/" + value.ext });
-        res.end(value.data, "base64");
+    if (checkToken(req.params.token, envVars.getApiToken(), res)) {
+      if (req.params.key in storage) {
+        const value = storage[req.params.key];
+        if (value.type === DATA_TYPES.file) {
+          res.writeHead(200, { "content-type": value.mimetype });
+          res.end(value.data, "base64");
+        } else {
+          res.end(value.data, "utf8");
+        }
       } else {
-        res.end(value.data, "utf8");
+        res.send("Not found")
       }
     }
   });
 
   app.get("/:token/file/delete/:key", (req, res) => {
-    if (checkToken(req.params.token, envVars, res)) {
+    if (checkToken(req.params.token, envVars.getApiToken(), res)) {
       delete storage[req.params.key];
+      encryptToFile(
+        STORAGE_PATH,
+        JSON.stringify(storage),
+        envVars.getStoragePassword()
+      );
     }
   });
 
   app.route(`/:token/${URLS.SUBMIT}`).post(function (req, res, next) {
-    if (checkToken(req.params.token, envVars, res)) {
+    if (checkToken(req.params.token, envVars.getApiToken(), res)) {
       const form = formidable({});
 
       form.parse(req, (err, fields, files) => {
@@ -118,6 +114,7 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
           next(err);
           return;
         }
+        let resMsg = "";
         for (let i = 0; i < files[HTML_FILE_INPUT_NAME].length; i++) {
           // Currently only one file upload is supported
           const file = files[HTML_FILE_INPUT_NAME][i];
@@ -134,9 +131,15 @@ export function serve({ port = 8080, envVars = undefined } = {}) {
             path: file.path,
             mimetype: file.mimetype,
           };
-          console.log(`Uploaded file: ${file.originalFilename} as ${key}`);
+          resMsg += `Uploaded file: \`${file.originalFilename}\` as \`${key}\``;
+          console.log(resMsg);
         }
-        res.send("Uploaded");
+        encryptToFile(
+          STORAGE_PATH,
+          JSON.stringify(storage),
+          envVars.getStoragePassword()
+        );
+        res.send(resMsg);
       });
     } else {
       res.status(401).send("Unauthorized");

@@ -2,14 +2,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+function getEnvWithDefaults(key) {
+  return process.env[key] === undefined ? "pass" : process.env[key];
+}
+
 const ENV_VARS = {
-  FILESYSTEM:
-    process.env.FILESYSTEM === undefined ? "abc123" : process.env.FILESYSTEM,
-  TOKEN: process.env.TOKEN === undefined ? "pass" : process.env.TOKEN,
+  FILESYSTEM: getEnvWithDefaults("FILESYSTEM"),
+  TOKEN: getEnvWithDefaults("TOKEN"),
 };
 
 export class envVars {
-  getFileSystemPassword() {
+  getStoragePassword() {
     return ENV_VARS.FILESYSTEM;
   }
 

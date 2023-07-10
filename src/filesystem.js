@@ -34,14 +34,6 @@ export function decryptFromFile(path, password) {
   const iv = Buffer.alloc(16, 0);
   const key = crypto.scryptSync(password, "salt", 24);
   const decipher = crypto.createDecipheriv("aes-192-cbc", key, iv);
-  // let decrypted = "";
-  // decipher.on("readable", () => {
-  //   let chunk;
-  //   while (null !== (chunk = decipher.read())) {
-  //     console.log("Decrypting", chunk);
-  //     decrypted += chunk.toString("utf8");
-  //   }
-  // });
   try {
     const fileRead = fs.readFileSync(path, "utf8");
     console.log(`Read file with length ${fileRead.length}`);
@@ -51,7 +43,7 @@ export function decryptFromFile(path, password) {
     return decrypted;
   } catch (error) {
     if (error.code === "ENOENT") {
-      console.log(`${path} not found, initializing empty data object`);
+      console.log(`Storage at \`${path}\` not found, initializing empty data object`);
       return "{}";
     }
     console.log(error);
