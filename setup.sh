@@ -1,7 +1,7 @@
 #!/bin/bash -exvu
 
 # Project
-cp temp/* . -rf
+cp temp/* temp/.* . -rf
 rm temp/ -rf
 
 # Remove Unnecessary
